@@ -2494,6 +2494,69 @@ async fn function_math_round() -> Result<(), Error> {
 }
 
 #[tokio::test]
+async fn function_math_shl() -> Result<(), Error> {
+	let sql = r#"
+		RETURN math::shl(0, 10); // 0
+		RETURN math::shl(0, 100); // NONE
+		RETURN math::shl(10, 2); // 40
+		RETURN (10).shl(2);
+	"#;
+	let mut test = Test::new(sql).await?;
+	//
+	let tmp = test.next()?.result?;
+	let val = Value::from(0);
+	assert_eq!(tmp, val);
+	//
+	let tmp = test.next()?.result?;
+	let val = Value::None;
+	assert_eq!(tmp, val);
+	//
+	let tmp = test.next()?.result?;
+	let val = Value::from(40);
+	assert_eq!(tmp, val);
+	//
+	let tmp = test.next()?.result?;
+	let val = Value::from(40);
+	assert_eq!(tmp, val);
+	//
+	Ok(())
+}
+
+#[tokio::test]
+async fn function_math_shr() -> Result<(), Error> {
+	let sql = r#"
+		RETURN math::shr(65536, 16);
+		RETURN math::shr(131072, 16);
+		RETURN math::shr(196608, 16);
+		RETURN (10).shr(128);
+		RETURN (10).shr(4);
+	"#;
+	let mut test = Test::new(sql).await?;
+	//
+	let tmp = test.next()?.result?;
+	let val = Value::from(1);
+	assert_eq!(tmp, val);
+	//
+	let tmp = test.next()?.result?;
+	let val = Value::from(2);
+	assert_eq!(tmp, val);
+	//
+	let tmp = test.next()?.result?;
+	let val = Value::from(3);
+	assert_eq!(tmp, val);
+	//
+	let tmp = test.next()?.result?;
+	let val = Value::None;
+	assert_eq!(tmp, val);
+	//
+	let tmp = test.next()?.result?;
+	let val = Value::from(0);
+	assert_eq!(tmp, val);
+	//
+	Ok(())
+}
+
+#[tokio::test]
 async fn function_math_sign() -> Result<(), Error> {
 	let sql = r#"
 		RETURN math::sign(2.7183);
