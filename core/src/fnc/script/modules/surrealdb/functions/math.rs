@@ -39,6 +39,8 @@ impl_module_def!(
 	"product" => run,
 	"rad2deg" => run,
 	"round" => run,
+	"shl" => run,
+	"shr" => run,
 	"sign" => run,
 	"sin" => run,
 	"spread" => run,

@@ -5,6 +5,7 @@ use crate::sql::idiom::Idiom;
 use crate::sql::index::Distance;
 use crate::sql::thing::Thing;
 use crate::sql::value::Value;
+use crate::sql::Number;
 use crate::syn::error::RenderedError as RenderedParserError;
 use crate::vs::Error as VersionstampError;
 use base64::DecodeError as Base64Error;
@@ -193,6 +194,12 @@ pub enum Error {
 	#[error("Found {value} but the START clause must evaluate to a positive integer")]
 	InvalidStart {
 		value: String,
+	},
+
+	/// Bit shift must be a positive integer
+	#[error("Found {value} but expected a positive integer")]
+	InvalidNegativeNumber {
+		value: Number,
 	},
 
 	/// There was an error with the provided JavaScript code

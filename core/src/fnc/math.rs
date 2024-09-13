@@ -165,6 +165,42 @@ pub fn round((arg,): (Number,)) -> Result<Value, Error> {
 	Ok(arg.round().into())
 }
 
+pub fn shl((arg, shift): (Number, Number)) -> Result<Value, Error> {
+	let shift = match &shift {
+		Number::Int(val) if *val >= 0 => *val as u32,
+		_ => {
+			return Err(Error::InvalidNegativeNumber {
+				value: shift,
+			})
+		}
+	};
+	Ok(match arg {
+		Number::Int(i) => match i.checked_shl(shift) {
+			Some(num) => Value::Number(Number::Int(num)),
+			None => Value::None,
+		},
+		_ => Value::None,
+	})
+}
+
+pub fn shr((arg, shift): (Number, Number)) -> Result<Value, Error> {
+	let shift = match &shift {
+		Number::Int(val) if *val >= 0 => *val as u32,
+		_ => {
+			return Err(Error::InvalidNegativeNumber {
+				value: shift,
+			})
+		}
+	};
+	Ok(match arg {
+		Number::Int(i) => match i.checked_shr(shift) {
+			Some(num) => Value::Number(Number::Int(num)),
+			None => Value::None,
+		},
+		_ => Value::None,
+	})
+}
+
 pub fn sign((arg,): (Number,)) -> Result<Value, Error> {
 	Ok(arg.sign().into())
 }
