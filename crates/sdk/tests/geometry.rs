@@ -470,3 +470,70 @@ async fn geometry_inner_access() -> Result<(), Error> {
 	//
 	Ok(())
 }
+
+#[tokio::test]
+async fn objects_coerce_into_geometries() -> Result<(), Error> {
+	let queries = r#"
+	LET $polygon = {
+    type: "Polygon",
+    coordinates: [[
+        [78.8, 78.8]
+    ]]
+};
+$polygon.is_geometry();
+$polygon.is_object();
+
+LET $chained = {
+    type: "Polygon",
+    coordinates: [[
+        [78.8, 78.8]
+    ]]
+}.chain(|$o: geometry| {
+    type: $o.type,
+    coordinates: $o.coordinates
+});
+
+$chained.is_object();
+$chained.is_geometry();
+<geometry>$chained;
+RETURN geo::is::valid($chained);"#;
+
+	let dbs = new_ds().await?;
+	let ses = Session::owner().with_ns("test").with_db("test");
+	let res = &mut dbs.execute(queries, &ses, None).await?;
+
+	// Geometry is succesfully created
+	let tmp = res.remove(0).result?;
+	assert_eq!(tmp, Value::None);
+
+	// It is a geometry
+	let tmp = res.remove(0).result?;
+	assert_eq!(tmp, Value::Bool(true));
+
+	// It is not an object
+	let tmp = res.remove(0).result?;
+	assert_eq!(tmp, Value::Bool(false));
+
+	// $chained parameter is created
+	let tmp = res.remove(0).result?;
+	assert_eq!(tmp, Value::None);
+
+	// It is an object
+	let tmp = res.remove(0).result?;
+	assert_eq!(tmp, Value::Bool(true));
+
+	// It is not a geometry
+	let tmp = res.remove(0).result?;
+	assert_eq!(tmp, Value::Bool(false));
+
+	// Cast into geometry works
+	let tmp = res.remove(0).result?;
+	let geometry = Value::parse(r#"{ type: 'Polygon', coordinates: [[[78.8, 78.8]]] }"#);
+	assert_eq!(tmp, geometry);
+
+	// And geo function works with $chained as an input
+	// because it is coerced
+	let tmp = res.remove(0).result?;
+	assert_eq!(tmp, Value::Bool(true));
+	Ok(())
+}

@@ -16,6 +16,8 @@ use std::fmt::{self, Display, Formatter, Write};
 use std::ops::Deref;
 use std::ops::DerefMut;
 
+use super::{Geometry, Strand};
+
 pub(crate) const TOKEN: &str = "$surrealdb::private::sql::Object";
 
 /// Invariant: Keys never contain NUL bytes.
@@ -209,6 +211,58 @@ impl Object {
 			_ => Err(Error::InvalidPatch {
 				message: String::from("'op' key missing"),
 			}),
+		}
+	}
+
+	pub fn try_to_geom(&self) -> Option<Geometry> {
+		if self.len() != 2 {
+			return None;
+		}
+
+		let Some(Value::Strand(Strand(key))) = self.get("type") else {
+			return None;
+		};
+
+		match key.as_str() {
+			"Point" => {
+				self.get("coordinates").and_then(Geometry::array_to_point).map(Geometry::Point)
+			}
+			"LineString" => {
+				self.get("coordinates").and_then(Geometry::array_to_line).map(Geometry::Line)
+			}
+			"Polygon" => {
+				self.get("coordinates").and_then(Geometry::array_to_polygon).map(Geometry::Polygon)
+			}
+			"MultiPoint" => self
+				.get("coordinates")
+				.and_then(Geometry::array_to_multipoint)
+				.map(Geometry::MultiPoint),
+			"MultiLineString" => self
+				.get("coordinates")
+				.and_then(Geometry::array_to_multiline)
+				.map(Geometry::MultiLine),
+			"MultiPolygon" => self
+				.get("coordinates")
+				.and_then(Geometry::array_to_multipolygon)
+				.map(Geometry::MultiPolygon),
+			"GeometryCollection" => {
+				let Some(Value::Array(x)) = self.get("geometries") else {
+					return None;
+				};
+
+				let mut res = Vec::with_capacity(x.len());
+
+				for x in x.iter() {
+					let Value::Geometry(x) = x else {
+						return None;
+					};
+					res.push(x.clone());
+				}
+
+				Some(Geometry::Collection(res))
+			}
+
+			_ => None,
 		}
 	}
 }

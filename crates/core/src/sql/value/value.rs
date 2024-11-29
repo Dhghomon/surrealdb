@@ -1789,6 +1789,11 @@ impl Value {
 		match self {
 			// Geometries are allowed
 			Value::Geometry(v) => Ok(v),
+			// Geometries
+			Value::Object(o) => o.try_to_geom().ok_or(Error::CoerceTo {
+				from: Value::None,
+				into: "geometry".into(),
+			}),
 			// Anything else raises an error
 			_ => Err(Error::CoerceTo {
 				from: self,
@@ -1815,6 +1820,11 @@ impl Value {
 		match self {
 			// Geometries are allowed if correct type
 			Value::Geometry(v) if self.is_geometry_type(val) => Ok(v),
+			//
+			Value::Object(o) => o.try_to_geom().ok_or(Error::CoerceTo {
+				from: Value::None,
+				into: "geometry".into(),
+			}),
 			// Anything else raises an error
 			_ => Err(Error::CoerceTo {
 				from: self,
@@ -2419,6 +2429,11 @@ impl Value {
 		match self {
 			// Geometries are allowed
 			Value::Geometry(v) => Ok(v),
+			// Geometries
+			Value::Object(o) => o.try_to_geom().ok_or(Error::CoerceTo {
+				from: Value::None,
+				into: "geometry".into(),
+			}),
 			// Anything else raises an error
 			_ => Err(Error::ConvertTo {
 				from: self,
@@ -2455,6 +2470,11 @@ impl Value {
 		match self {
 			// Geometries are allowed if correct type
 			Value::Geometry(v) if self.is_geometry_type(val) => Ok(v),
+			// Geometries
+			Value::Object(o) => o.try_to_geom().ok_or(Error::CoerceTo {
+				from: Value::None,
+				into: "geometry".into(),
+			}),
 			// Anything else raises an error
 			_ => Err(Error::ConvertTo {
 				from: self,
