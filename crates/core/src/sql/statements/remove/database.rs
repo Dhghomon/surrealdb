@@ -3,13 +3,13 @@ use crate::dbs::Options;
 use crate::err::Error;
 use crate::iam::{Action, ResourceKind};
 use crate::sql::{Base, Ident, Value};
-use derive::Store;
+
 use revision::revisioned;
 use serde::{Deserialize, Serialize};
 use std::fmt::{self, Display, Formatter};
 
 #[revisioned(revision = 3)]
-#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Store, Hash)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[non_exhaustive]
 pub struct RemoveDatabaseStatement {
@@ -29,6 +29,11 @@ impl RemoveDatabaseStatement {
 			// Get the transaction
 			let txn = ctx.tx();
 			// Remove the index stores
+			#[cfg(not(target_family = "wasm"))]
+			ctx.get_index_stores()
+				.database_removed(ctx.get_index_builder(), &txn, opt.ns()?, &self.name)
+				.await?;
+			#[cfg(target_family = "wasm")]
 			ctx.get_index_stores().database_removed(&txn, opt.ns()?, &self.name).await?;
 			// Get the definition
 			let db = txn.get_db(opt.ns()?, &self.name).await?;
@@ -44,6 +49,10 @@ impl RemoveDatabaseStatement {
 				true => txn.clrp(key).await?,
 				false => txn.delp(key).await?,
 			};
+			// Clear the cache
+			if let Some(cache) = ctx.get_cache() {
+				cache.clear();
+			}
 			// Clear the cache
 			txn.clear();
 			// Ok all good

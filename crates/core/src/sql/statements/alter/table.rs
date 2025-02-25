@@ -7,7 +7,7 @@ use crate::sql::fmt::{is_pretty, pretty_indent};
 use crate::sql::statements::DefineTableStatement;
 use crate::sql::{changefeed::ChangeFeed, Base, Ident, Permissions, Strand, Value};
 use crate::sql::{Kind, TableType};
-use derive::Store;
+
 use reblessive::tree::Stk;
 use revision::revisioned;
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ use std::fmt::{self, Display, Write};
 use std::ops::Deref;
 
 #[revisioned(revision = 1)]
-#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Store, Hash)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[non_exhaustive]
 pub struct AlterTableStatement {
@@ -39,10 +39,12 @@ impl AlterTableStatement {
 	) -> Result<Value, Error> {
 		// Allowed to run?
 		opt.is_allowed(Action::Edit, ResourceKind::Table, &Base::Db)?;
+		// Get the NS and DB
+		let (ns, db) = opt.ns_db()?;
 		// Fetch the transaction
 		let txn = ctx.tx();
 		// Get the table definition
-		let mut dt = match txn.get_tb(opt.ns()?, opt.db()?, &self.name).await {
+		let mut dt = match txn.get_tb(ns, db, &self.name).await {
 			Ok(tb) => tb.deref().clone(),
 			Err(Error::TbNotFound {
 				..
@@ -50,7 +52,7 @@ impl AlterTableStatement {
 			Err(v) => return Err(v),
 		};
 		// Process the statement
-		let key = crate::key::database::tb::new(opt.ns()?, opt.db()?, &self.name);
+		let key = crate::key::database::tb::new(ns, db, &self.name);
 		if let Some(ref drop) = &self.drop {
 			dt.drop = *drop;
 		}
@@ -72,13 +74,13 @@ impl AlterTableStatement {
 
 		// Add table relational fields
 		if matches!(self.kind, Some(TableType::Relation(_))) {
-			DefineTableStatement::add_in_out_fields(&txn, &mut dt, opt).await?;
+			DefineTableStatement::add_in_out_fields(&txn, ns, db, &mut dt).await?;
 		}
 		// Set the table definition
-		txn.set(key, &dt, None).await?;
+		txn.set(key, revision::to_vec(&dt)?, None).await?;
 		// Record definition change
 		if self.changefeed.is_some() && dt.changefeed.is_some() {
-			txn.lock().await.record_table_change(opt.ns()?, opt.db()?, &self.name, &dt);
+			txn.lock().await.record_table_change(ns, db, &self.name, &dt);
 		}
 		// Clear the cache
 		txn.clear();

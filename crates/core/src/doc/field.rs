@@ -5,6 +5,7 @@ use crate::dbs::Statement;
 use crate::doc::Document;
 use crate::err::Error;
 use crate::iam::Action;
+use crate::kvs::KeyEncode as _;
 use crate::sql::data::Data;
 use crate::sql::idiom::Idiom;
 use crate::sql::kind::Kind;
@@ -12,6 +13,7 @@ use crate::sql::permission::Permission;
 use crate::sql::reference::Refs;
 use crate::sql::statements::DefineFieldStatement;
 use crate::sql::thing::Thing;
+use crate::sql::value::every::ArrayBehaviour;
 use crate::sql::value::Value;
 use crate::sql::Part;
 use reblessive::tree::Stk;
@@ -57,10 +59,7 @@ impl Document {
 				if !keys.contains(fd) {
 					match fd {
 						// Built-in fields
-						fd if fd.is_id() => continue,
-						fd if fd.is_in() => continue,
-						fd if fd.is_out() => continue,
-						fd if fd.is_meta() => continue,
+						fd if fd.is_special() => continue,
 						// Custom fields
 						fd => match opt.strict {
 							// If strict, then throw an error on an undefined field
@@ -75,18 +74,14 @@ impl Document {
 						},
 					}
 				}
-				// NONE values should never be stored
-				if self.current.doc.pick(fd).is_none() {
-					self.current.doc.to_mut().cut(fd);
-				}
 			}
-		} else {
-			// Loop over every field in the document
-			for fd in self.current.doc.every(None, true, true).iter() {
-				// NONE values should never be stored
-				if self.current.doc.pick(fd).is_none() {
-					self.current.doc.to_mut().cut(fd);
-				}
+		}
+
+		// Loop over every field in the document
+		for fd in self.current.doc.every(None, true, ArrayBehaviour::Nested).iter() {
+			// NONE values should never be stored
+			if self.current.doc.pick(fd).is_none() {
+				self.current.doc.to_mut().cut(fd);
 			}
 		}
 		// Carry on
@@ -132,6 +127,7 @@ impl Document {
 				}
 				None => false,
 			};
+
 			// Loop over each field in document
 			for (k, mut val) in self.current.doc.as_ref().walk(&fd.name).into_iter() {
 				// Get the initial value
@@ -216,10 +212,13 @@ impl Document {
 					if !skipped {
 						// Process any DEFAULT clause
 						val = field.process_default_clause(val).await?;
-						// Process any TYPE clause
-						val = field.process_type_clause(val).await?;
-						// Process any VALUE clause
-						val = field.process_value_clause(val).await?;
+						// Check for the existance of a VALUE clause
+						if field.def.value.is_some() {
+							// Process any TYPE clause
+							val = field.process_type_clause(val).await?;
+							// Process any VALUE clause
+							val = field.process_value_clause(val).await?;
+						}
 						// Process any TYPE clause
 						val = field.process_type_clause(val).await?;
 						// Process any ASSERT clause
@@ -237,14 +236,61 @@ impl Document {
 						skip = Some(&fd.name);
 					}
 					// Set the new value of the field, or delete it if empty
-					match val.is_none() {
-						false => self.current.doc.to_mut().put(&k, val),
-						true => self.current.doc.to_mut().cut(&k),
-					};
+					self.current.doc.to_mut().put(&k, val);
 				}
 			}
 		}
 		// Carry on
+		Ok(())
+	}
+	/// Processes `DEFINE FIELD` statements which
+	/// have been defined on the table for this
+	/// record, with a `REFERENCE` clause, and remove
+	/// all possible references this record has made.
+	pub(super) async fn cleanup_table_references(
+		&mut self,
+		stk: &mut Stk,
+		ctx: &Context,
+		opt: &Options,
+	) -> Result<(), Error> {
+		// Check import
+		if opt.import {
+			return Ok(());
+		}
+		// Get the record id
+		let rid = self.id()?;
+		// Loop through all field statements
+		for fd in self.fd(ctx, opt).await?.iter() {
+			// Only process reference fields
+			if fd.reference.is_none() {
+				continue;
+			}
+
+			// Loop over each value in document
+			'val: for (_, val) in self.current.doc.as_ref().walk(&fd.name).into_iter() {
+				// Skip if the value is empty
+				if val.is_none() || val.is_empty_array() {
+					continue 'val;
+				}
+
+				// Prepare the field edit context
+				let mut field = FieldEditContext {
+					context: None,
+					doc: self,
+					rid: rid.clone(),
+					def: fd,
+					stk,
+					ctx,
+					opt,
+					old: val.into(),
+					inp: Value::None.into(),
+				};
+
+				// Pass an empty value to delete all the existing references
+				field.process_reference_clause(&Value::None).await?;
+			}
+		}
+
 		Ok(())
 	}
 }
@@ -348,7 +394,7 @@ impl FieldEditContext<'_> {
 			return Ok(val);
 		}
 		// The document is not being created
-		if !self.doc.is_new() {
+		if !self.doc.is_new() && !self.def.default_always {
 			return Ok(val);
 		}
 		// Get the default value
@@ -638,16 +684,17 @@ impl FieldEditContext<'_> {
 				RefAction::Ignore => Ok(()),
 				// Create the reference, if it does not exist yet.
 				RefAction::Set(thing) => {
+					let (ns, db) = self.opt.ns_db()?;
 					let key = crate::key::r#ref::new(
-						self.opt.ns()?,
-						self.opt.db()?,
+						ns,
+						db,
 						&thing.tb,
 						&thing.id,
 						&self.rid.tb,
 						&self.def.name.to_string(),
 						&self.rid.id,
 					)
-					.encode()
+					.encode_owned()
 					.unwrap();
 
 					self.ctx.tx().set(key, vec![], None).await?;
@@ -656,17 +703,18 @@ impl FieldEditContext<'_> {
 				}
 				// Delete the reference, if it exists
 				RefAction::Delete(things, ff) => {
+					let (ns, db) = self.opt.ns_db()?;
 					for thing in things {
 						let key = crate::key::r#ref::new(
-							self.opt.ns()?,
-							self.opt.db()?,
+							ns,
+							db,
 							&thing.tb,
 							&thing.id,
 							&self.rid.tb,
 							&ff,
 							&self.rid.id,
 						)
-						.encode()
+						.encode_owned()
 						.unwrap();
 
 						self.ctx.tx().del(key).await?;

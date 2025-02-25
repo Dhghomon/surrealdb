@@ -7,7 +7,7 @@ use crate::sql::statements::info::InfoStructure;
 use crate::sql::statements::DefineTableStatement;
 use crate::sql::statements::UpdateStatement;
 use crate::sql::{Base, Ident, Idioms, Index, Output, Part, Strand, Value, Values};
-use derive::Store;
+
 use reblessive::tree::Stk;
 use revision::revisioned;
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,7 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 #[revisioned(revision = 4)]
-#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Store, Hash)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, PartialOrd, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 #[non_exhaustive]
 pub struct DefineIndexStatement {
@@ -44,30 +44,38 @@ impl DefineIndexStatement {
 	) -> Result<Value, Error> {
 		// Allowed to run?
 		opt.is_allowed(Action::Edit, ResourceKind::Index, &Base::Db)?;
+		// Get the NS and DB
+		let (ns, db) = opt.ns_db()?;
 		// Fetch the transaction
 		let txn = ctx.tx();
 		// Check if the definition exists
-		if txn.get_tb_index(opt.ns()?, opt.db()?, &self.what, &self.name).await.is_ok() {
+		if txn.get_tb_index(ns, db, &self.what, &self.name).await.is_ok() {
 			if self.if_not_exists {
 				return Ok(Value::None);
 			} else if !self.overwrite {
 				return Err(Error::IxAlreadyExists {
-					value: self.name.to_string(),
+					name: self.name.to_string(),
 				});
 			}
+			// Clear the index store cache
+			#[cfg(not(target_family = "wasm"))]
+			ctx.get_index_stores()
+				.index_removed(ctx.get_index_builder(), &txn, ns, db, &self.what, &self.name)
+				.await?;
+			#[cfg(target_family = "wasm")]
+			ctx.get_index_stores().index_removed(&txn, ns, db, &self.what, &self.name).await?;
 		}
 		// Does the table exists?
-		match txn.get_tb(opt.ns()?, opt.db()?, &self.what).await {
-			Ok(db) => {
+		match txn.get_tb(ns, db, &self.what).await {
+			Ok(tb) => {
 				// Are we SchemaFull?
-				if db.full {
+				if tb.full {
 					// Check that the fields exists
 					for idiom in self.cols.iter() {
 						let Some(Part::Field(first)) = idiom.0.first() else {
 							continue;
 						};
-						txn.get_tb_field(opt.ns()?, opt.db()?, &self.what, &first.to_string())
-							.await?;
+						txn.get_tb_field(ns, db, &self.what, &first.to_string()).await?;
 					}
 				}
 			}
@@ -79,35 +87,41 @@ impl DefineIndexStatement {
 			Err(e) => return Err(e),
 		}
 		// Process the statement
-		let key = crate::key::table::ix::new(opt.ns()?, opt.db()?, &self.what, &self.name);
-		txn.get_or_add_ns(opt.ns()?, opt.strict).await?;
-		txn.get_or_add_db(opt.ns()?, opt.db()?, opt.strict).await?;
-		txn.get_or_add_tb(opt.ns()?, opt.db()?, &self.what, opt.strict).await?;
+		let key = crate::key::table::ix::new(ns, db, &self.what, &self.name);
+		txn.get_or_add_ns(ns, opt.strict).await?;
+		txn.get_or_add_db(ns, db, opt.strict).await?;
+		txn.get_or_add_tb(ns, db, &self.what, opt.strict).await?;
 		txn.set(
 			key,
-			DefineIndexStatement {
-				// Don't persist the `IF NOT EXISTS` clause to schema
+			revision::to_vec(&DefineIndexStatement {
+				// Don't persist the `IF NOT EXISTS`, `OVERWRITE` and `CONCURRENTLY` clause to schema
 				if_not_exists: false,
 				overwrite: false,
+				concurrently: false,
 				..self.clone()
-			},
+			})?,
 			None,
 		)
 		.await?;
 		// Refresh the table cache
-		let key = crate::key::database::tb::new(opt.ns()?, opt.db()?, &self.what);
-		let tb = txn.get_tb(opt.ns()?, opt.db()?, &self.what).await?;
+		let key = crate::key::database::tb::new(ns, db, &self.what);
+		let tb = txn.get_tb(ns, db, &self.what).await?;
 		txn.set(
 			key,
-			DefineTableStatement {
+			revision::to_vec(&DefineTableStatement {
 				cache_indexes_ts: Uuid::now_v7(),
 				..tb.as_ref().clone()
-			},
+			})?,
 			None,
 		)
 		.await?;
 		// Clear the cache
+		if let Some(cache) = ctx.get_cache() {
+			cache.clear_tb(ns, db, &self.what);
+		}
+		// Clear the cache
 		txn.clear();
+		// Process the index
 		#[cfg(not(target_family = "wasm"))]
 		if self.concurrently {
 			self.async_index(ctx, opt)?;

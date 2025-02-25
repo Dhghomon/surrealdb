@@ -28,6 +28,10 @@ pub const PKG_NAME: &str = "surrealdb";
 /// The public endpoint for the administration interface
 pub const APP_ENDPOINT: &str = "https://surrealdb.com/surrealist";
 
+/// How many concurrent network requests can be handled at once (defaults to 1,048,576)
+pub static NET_MAX_CONCURRENT_REQUESTS: LazyLock<usize> =
+	lazy_env_parse!("SURREAL_NET_MAX_CONCURRENT_REQUESTS", usize, 1 << 20);
+
 /// The maximum HTTP body size of the HTTP /ml endpoints (defaults to 4 GiB)
 pub static HTTP_MAX_ML_BODY_SIZE: LazyLock<usize> =
 	lazy_env_parse!("SURREAL_HTTP_MAX_ML_BODY_SIZE", usize, 4 << 30);
@@ -35,6 +39,10 @@ pub static HTTP_MAX_ML_BODY_SIZE: LazyLock<usize> =
 /// The maximum HTTP body size of the HTTP /sql endpoint (defaults to 1 MiB)
 pub static HTTP_MAX_SQL_BODY_SIZE: LazyLock<usize> =
 	lazy_env_parse!("SURREAL_HTTP_MAX_SQL_BODY_SIZE", usize, 1 << 20);
+
+/// The maximum HTTP body size of the HTTP /api endpoint (defaults to 1 MiB)
+pub static HTTP_MAX_API_BODY_SIZE: LazyLock<usize> =
+	lazy_env_parse!("SURREAL_HTTP_MAX_API_BODY_SIZE", usize, 4 << 20);
 
 /// The maximum HTTP body size of the HTTP /rpc endpoint (defaults to 4 MiB)
 pub static HTTP_MAX_RPC_BODY_SIZE: LazyLock<usize> =
@@ -67,11 +75,17 @@ pub static WEBSOCKET_MAX_FRAME_SIZE: LazyLock<usize> =
 pub static WEBSOCKET_MAX_MESSAGE_SIZE: LazyLock<usize> =
 	lazy_env_parse!("SURREAL_WEBSOCKET_MAX_MESSAGE_SIZE", usize, 128 << 20);
 
-/// How many concurrent tasks can be handled on each WebSocket (defaults to 4 times the number of CPU cores, minimum 12)
-pub static WEBSOCKET_MAX_CONCURRENT_REQUESTS: LazyLock<usize> =
-	lazy_env_parse_or_else!("SURREAL_WEBSOCKET_MAX_CONCURRENT_REQUESTS", usize, |_| {
-		std::cmp::max(12, num_cpus::get().saturating_mul(4))
-	});
+/// How many responses can be buffered when delivering to the client (defaults to 25).
+pub static WEBSOCKET_RESPONSE_BUFFER_SIZE: LazyLock<usize> =
+	lazy_env_parse!("SURREAL_WEBSOCKET_RESPONSE_BUFFER_SIZE", usize, 25);
+
+/// How often are any buffered responses flushed to the WebSocket client (defaults to 3 ms).
+pub static WEBSOCKET_RESPONSE_FLUSH_PERIOD: LazyLock<u64> =
+	lazy_env_parse!("SURREAL_WEBSOCKET_RESPONSE_FLUSH_PERIOD", u64, 3);
+
+/// How many messages can be queued for sending to the buffered WebSocket connection.
+pub static WEBSOCKET_RESPONSE_CHANNEL_SIZE: LazyLock<usize> =
+	lazy_env_parse!("SURREAL_WEBSOCKET_RESPONSE_CHANNEL_SIZE", usize, 100);
 
 /// The number of runtime worker threads to start (defaults to the number of CPU cores, minimum 4)
 pub static RUNTIME_WORKER_THREADS: LazyLock<usize> =

@@ -80,7 +80,7 @@ impl HnswIndex {
 		Ok(Self {
 			dim: p.dimension as usize,
 			vector_type: p.vector_type,
-			hnsw: HnswFlavor::new(ikb.clone(), p),
+			hnsw: HnswFlavor::new(ikb.clone(), p)?,
 			docs: HnswDocs::new(tx, tb, ikb.clone()).await?,
 			vec_docs: VecDocs::new(ikb),
 		})
@@ -89,7 +89,7 @@ impl HnswIndex {
 	pub async fn index_document(
 		&mut self,
 		tx: &Transaction,
-		id: Id,
+		id: &Id,
 		content: &[Value],
 	) -> Result<(), Error> {
 		// Ensure the layers are up-to-date

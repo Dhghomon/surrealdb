@@ -62,8 +62,10 @@ pub(crate) static KEYWORDS: phf::Map<UniCase<&'static str>, TokenKind> = phf_map
 	UniCase::ascii("ALGORITHM") => TokenKind::Keyword(Keyword::Algorithm),
 	UniCase::ascii("ALL") => TokenKind::Keyword(Keyword::All),
 	UniCase::ascii("Alter") => TokenKind::Keyword(Keyword::Alter),
+	UniCase::ascii("ALWAYS") => TokenKind::Keyword(Keyword::Always),
 	UniCase::ascii("ANALYZE") => TokenKind::Keyword(Keyword::Analyze),
 	UniCase::ascii("ANALYZER") => TokenKind::Keyword(Keyword::Analyzer),
+	UniCase::ascii("API") => TokenKind::Keyword(Keyword::Api),
 	UniCase::ascii("AS") => TokenKind::Keyword(Keyword::As),
 	UniCase::ascii("ASCENDING") => TokenKind::Keyword(Keyword::Ascending),
 	UniCase::ascii("ASC") => TokenKind::Keyword(Keyword::Ascending),
@@ -139,6 +141,7 @@ pub(crate) static KEYWORDS: phf::Map<UniCase<&'static str>, TokenKind> = phf_map
 	UniCase::ascii("GRANT") => TokenKind::Keyword(Keyword::Grant),
 	UniCase::ascii("GRAPHQL") => TokenKind::Keyword(Keyword::Graphql),
 	UniCase::ascii("GROUP") => TokenKind::Keyword(Keyword::Group),
+	UniCase::ascii("HEADERS") => TokenKind::Keyword(Keyword::Headers),
 	UniCase::ascii("HIGHLIGHTS") => TokenKind::Keyword(Keyword::Highlights),
 	UniCase::ascii("HNSW") => TokenKind::Keyword(Keyword::Hnsw),
 	UniCase::ascii("IGNORE") => TokenKind::Keyword(Keyword::Ignore),
@@ -163,6 +166,7 @@ pub(crate) static KEYWORDS: phf::Map<UniCase<&'static str>, TokenKind> = phf_map
 	UniCase::ascii("M") => TokenKind::Keyword(Keyword::M),
 	UniCase::ascii("M0") => TokenKind::Keyword(Keyword::M0),
 	UniCase::ascii("MAPPER") => TokenKind::Keyword(Keyword::Mapper),
+	UniCase::ascii("MIDDLEWARE") => TokenKind::Keyword(Keyword::Middleware),
 	UniCase::ascii("ML") => TokenKind::Keyword(Keyword::ML),
 	UniCase::ascii("MERGE") => TokenKind::Keyword(Keyword::Merge),
 	UniCase::ascii("MODEL") => TokenKind::Keyword(Keyword::Model),
@@ -392,4 +396,9 @@ pub(crate) static KEYWORDS: phf::Map<UniCase<&'static str>, TokenKind> = phf_map
 	UniCase::ascii("I32") => TokenKind::VectorType(VectorTypeKind::I32),
 	UniCase::ascii("I16") => TokenKind::VectorType(VectorTypeKind::I16),
 
+	// HTTP methods
+	UniCase::ascii("GET") => TokenKind::Keyword(Keyword::Get),
+	UniCase::ascii("POST") => TokenKind::Keyword(Keyword::Post),
+	UniCase::ascii("PUT") => TokenKind::Keyword(Keyword::Put),
+	UniCase::ascii("TRACE") => TokenKind::Keyword(Keyword::Trace)
 };
