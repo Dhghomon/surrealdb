@@ -55,6 +55,24 @@ error = "Cannot negate the value '1s'"
 [[test.results]]
 value = "1s"
 
+[[test.results]]
+value = "2d8h"
+
+[[test.results]]
+error = "Failed to compute: "584942417355y3w5d7h15s999ms999µs999ns * 2", as the operation results in an arithmetic overflow."
+
+[[test.results]]
+value = "0ns"
+
+[[test.results]]
+value = "14h"
+
+[[test.results]]
+value = "NaN"
+
+[[test.results]]
+value = "NaN"
+
 */
 
 1h / 1s;
@@ -82,3 +100,10 @@ value = "1s"
 -(1s);
 +(1s);
 
+1d2h * 2;
+duration::MAX * 2;
+duration::MAX * 0;
+
+1d2h / 2;
+1d2h / 0;
+1d2h / -2;

@@ -1033,6 +1033,15 @@ impl TryMul for Value {
 	fn try_mul(self, other: Self) -> Result<Self> {
 		Ok(match (self, other) {
 			(Self::Number(v), Self::Number(w)) => Self::Number(v.try_mul(w)?),
+			(Self::Duration(d), Self::Number(n)) => match n {
+				Number::Int(i) if i >= 0 => {
+					let res = d
+						.checked_mul(i as u32)
+						.ok_or(Error::ArithmeticOverflow(format!("{d} * {i}")))?;
+					Self::Duration(Duration(res))
+				}
+				other => bail!(Error::TryMul(d.to_string(), other.to_string())),
+			},
 			(v, w) => bail!(Error::TryMul(v.to_raw_string(), w.to_raw_string())),
 		})
 	}
@@ -1050,6 +1059,17 @@ impl TryDiv for Value {
 	fn try_div(self, other: Self) -> Result<Self> {
 		Ok(match (self, other) {
 			(Self::Number(v), Self::Number(w)) => Self::Number(v.try_div(w)?),
+			(Self::Duration(d), Self::Number(n)) => {
+				match n {
+					Number::Int(i) if i > 0 => {
+						// .checked_div() will only return None if divided by 0, i here is
+						// positive and greater than 0 so safe to unwrap
+						let res = d.checked_div(i as u32).unwrap();
+						Self::Duration(Duration(res))
+					}
+					other => bail!(Error::TryMul(d.to_string(), other.to_string())),
+				}
+			}
 			(v, w) => bail!(Error::TryDiv(v.to_raw_string(), w.to_raw_string())),
 		})
 	}
