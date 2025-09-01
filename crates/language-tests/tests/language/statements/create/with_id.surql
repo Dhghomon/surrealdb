@@ -35,6 +35,9 @@ value = "[{ id: test:⟨9223372036854775808⟩ }]"
 value = "[{ id: person:⟨8⟩, name: 'Tester' }]"
 
 [[test.results]]
+value = "[{ id: person:d'2025-09-01T01:45:39.998286Z', name: 'Tester' }]"
+
+[[test.results]]
 error = "Found '' for the Record ID but this is not a valid id"
 
 [[test.results]]
@@ -62,6 +65,7 @@ CREATE test CONTENT { id: other:715917898417176677 };
 CREATE test CONTENT { id: other:⟨715917898.417176677⟩ };
 CREATE test CONTENT { id: other:9223372036854775808 };
 CREATE person CONTENT { id: type::string(8), name: 'Tester' };
+CREATE person SET name = 'Tester', id = d'2025-09-01T01:45:39.998286Z';
 -- Should error as id is empty
 CREATE person SET id = '';
 CREATE person CONTENT { id: '', name: 'Tester' };
