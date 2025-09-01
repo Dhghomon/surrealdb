@@ -184,6 +184,7 @@ pub fn thing((arg1, Optional(arg2)): (Value, Optional<Value>)) -> Result<Value> 
 					RecordIdKey::Range(Box::new(res))
 				}
 				Value::Uuid(u) => u.into(),
+				Value::Datetime(d) => RecordIdKey::Datetime(d),
 				ref v => {
 					let s = v.to_raw_string();
 					ensure!(

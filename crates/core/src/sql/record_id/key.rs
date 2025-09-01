@@ -5,7 +5,7 @@ use crate::sql::escape::{EscapeKey, EscapeRid};
 use crate::sql::fmt::{Fmt, Pretty, is_pretty, pretty_indent};
 use crate::sql::literal::ObjectEntry;
 use crate::sql::{Expr, RecordIdKeyRangeLit};
-use crate::val::{RecordIdKey, Strand, Uuid};
+use crate::val::{Datetime, RecordIdKey, Strand, Uuid};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
@@ -41,6 +41,7 @@ pub enum RecordIdKeyLit {
 	Number(i64),
 	String(Strand),
 	Uuid(Uuid),
+	Datetime(Datetime),
 	Array(Vec<Expr>),
 	Object(Vec<ObjectEntry>),
 	Generate(RecordIdKeyGen),
@@ -53,6 +54,7 @@ impl RecordIdKeyLit {
 			RecordIdKey::Number(x) => RecordIdKeyLit::Number(x),
 			RecordIdKey::String(x) => RecordIdKeyLit::String(Strand::new_lossy(x)),
 			RecordIdKey::Uuid(x) => RecordIdKeyLit::Uuid(x),
+			RecordIdKey::Datetime(x) => RecordIdKeyLit::Datetime(x),
 			RecordIdKey::Array(x) => {
 				RecordIdKeyLit::Array(x.into_iter().map(Expr::from_value).collect())
 			}
@@ -86,6 +88,7 @@ impl From<RecordIdKeyLit> for crate::expr::RecordIdKeyLit {
 			RecordIdKeyLit::Number(x) => crate::expr::RecordIdKeyLit::Number(x),
 			RecordIdKeyLit::String(x) => crate::expr::RecordIdKeyLit::String(x),
 			RecordIdKeyLit::Uuid(x) => crate::expr::RecordIdKeyLit::Uuid(x),
+			RecordIdKeyLit::Datetime(x) => crate::expr::RecordIdKeyLit::Datetime(x),
 			RecordIdKeyLit::Array(x) => {
 				crate::expr::RecordIdKeyLit::Array(x.into_iter().map(From::from).collect())
 			}
@@ -104,6 +107,7 @@ impl From<crate::expr::RecordIdKeyLit> for RecordIdKeyLit {
 			crate::expr::RecordIdKeyLit::Number(x) => RecordIdKeyLit::Number(x),
 			crate::expr::RecordIdKeyLit::String(x) => RecordIdKeyLit::String(x),
 			crate::expr::RecordIdKeyLit::Uuid(uuid) => RecordIdKeyLit::Uuid(uuid),
+			crate::expr::RecordIdKeyLit::Datetime(datetime) => RecordIdKeyLit::Datetime(datetime),
 			crate::expr::RecordIdKeyLit::Array(exprs) => {
 				RecordIdKeyLit::Array(exprs.into_iter().map(From::from).collect())
 			}
@@ -122,6 +126,7 @@ impl Display for RecordIdKeyLit {
 			Self::Number(v) => Display::fmt(v, f),
 			Self::String(v) => EscapeRid(v).fmt(f),
 			Self::Uuid(v) => Display::fmt(v, f),
+			Self::Datetime(v) => Display::fmt(v, f),
 			Self::Array(v) => {
 				let mut f = Pretty::from(f);
 				f.write_char('[')?;

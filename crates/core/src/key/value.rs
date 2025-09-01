@@ -190,6 +190,7 @@ pub(crate) enum StoreKeyRecordIdKey {
 	//issues.
 	String(String),
 	Uuid(Uuid),
+	Datetime(Datetime),
 	Array(StoreKeyArray),
 	Object(StoreKeyObject),
 	Range(Box<StoreKeyRecordIdKeyRange>),
@@ -201,6 +202,7 @@ impl From<RecordIdKey> for StoreKeyRecordIdKey {
 			RecordIdKey::Number(n) => Self::Number(n),
 			RecordIdKey::String(s) => Self::String(s),
 			RecordIdKey::Uuid(u) => Self::Uuid(u),
+			RecordIdKey::Datetime(d) => Self::Datetime(d),
 			RecordIdKey::Array(a) => Self::Array(a.into()),
 			RecordIdKey::Object(o) => Self::Object(o.into()),
 			RecordIdKey::Range(r) => Self::Range(Box::new((*r).into())),
@@ -214,6 +216,7 @@ impl From<StoreKeyRecordIdKey> for RecordIdKey {
 			StoreKeyRecordIdKey::Number(n) => Self::Number(n),
 			StoreKeyRecordIdKey::String(s) => Self::String(s),
 			StoreKeyRecordIdKey::Uuid(u) => Self::Uuid(u),
+			StoreKeyRecordIdKey::Datetime(d) => Self::Datetime(d),
 			StoreKeyRecordIdKey::Array(a) => Self::Array(a.into()),
 			StoreKeyRecordIdKey::Object(o) => Self::Object(o.into()),
 			StoreKeyRecordIdKey::Range(r) => Self::Range(Box::new((*r).into())),

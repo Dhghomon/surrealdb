@@ -11,7 +11,7 @@ use crate::cnf::ID_CHARS;
 use crate::expr::escape::EscapeRid;
 use crate::expr::{self};
 use crate::kvs::impl_kv_value_revisioned;
-use crate::val::{Array, Number, Object, Range, Strand, Uuid, Value};
+use crate::val::{Array, Datetime, Number, Object, Range, Strand, Uuid, Value};
 
 #[revisioned(revision = 1)]
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize, Hash)]
@@ -154,6 +154,7 @@ pub enum RecordIdKey {
 	//issues.
 	String(String),
 	Uuid(Uuid),
+	Datetime(Datetime),
 	Array(Array),
 	Object(Object),
 	Range(Box<RecordIdKeyRange>),
@@ -190,6 +191,7 @@ impl RecordIdKey {
 				Value::Strand(s)
 			}
 			RecordIdKey::Uuid(u) => Value::Uuid(u),
+			RecordIdKey::Datetime(d) => Value::Datetime(d),
 			RecordIdKey::Object(object) => Value::Object(object),
 			RecordIdKey::Array(array) => Value::Array(array),
 			RecordIdKey::Range(range) => Value::Range(Box::new(Range {
@@ -214,6 +216,7 @@ impl RecordIdKey {
 			// NOTE: This was previously (before expr inversion pr) also rejected in this
 			// conversion, a bug I assume.
 			Value::Uuid(uuid) => Some(RecordIdKey::Uuid(uuid)),
+			Value::Datetime(datetime) => Some(RecordIdKey::Datetime(datetime)),
 			Value::Array(array) => Some(RecordIdKey::Array(array)),
 			Value::Object(object) => Some(RecordIdKey::Object(object)),
 			Value::Range(range) => {
@@ -229,6 +232,7 @@ impl RecordIdKey {
 			RecordIdKey::Number(n) => expr::RecordIdKeyLit::Number(n),
 			// TODO: Null byte validity
 			RecordIdKey::String(s) => expr::RecordIdKeyLit::String(Strand::new(s).unwrap()),
+			RecordIdKey::Datetime(d) => expr::RecordIdKeyLit::Datetime(d),
 			RecordIdKey::Uuid(uuid) => expr::RecordIdKeyLit::Uuid(uuid),
 			RecordIdKey::Object(object) => expr::RecordIdKeyLit::Object(object.into_literal()),
 			RecordIdKey::Array(array) => expr::RecordIdKeyLit::Array(array.into_literal()),
@@ -256,6 +260,13 @@ impl From<Uuid> for RecordIdKey {
 		RecordIdKey::Uuid(value)
 	}
 }
+
+impl From<Datetime> for RecordIdKey {
+	fn from(value: Datetime) -> Self {
+		RecordIdKey::Datetime(value)
+	}
+}
+
 impl From<Object> for RecordIdKey {
 	fn from(value: Object) -> Self {
 		RecordIdKey::Object(value)
@@ -276,6 +287,13 @@ impl PartialEq<Value> for RecordIdKey {
 	fn eq(&self, other: &Value) -> bool {
 		match self {
 			RecordIdKey::Number(a) => Value::Number(Number::Int(*a)) == *other,
+			RecordIdKey::Datetime(a) => {
+				if let Value::Datetime(b) = other {
+					a == b
+				} else {
+					false
+				}
+			}
 			RecordIdKey::String(a) => {
 				if let Value::Strand(b) = other {
 					a.as_str() == b.as_str()
@@ -321,6 +339,7 @@ impl fmt::Display for RecordIdKey {
 			RecordIdKey::Number(n) => write!(f, "{n}"),
 			RecordIdKey::String(v) => EscapeRid(v).fmt(f),
 			RecordIdKey::Uuid(uuid) => uuid.fmt(f),
+			RecordIdKey::Datetime(datetime) => datetime.fmt(f),
 			RecordIdKey::Object(object) => object.fmt(f),
 			RecordIdKey::Array(array) => array.fmt(f),
 			RecordIdKey::Range(rid) => rid.fmt(f),

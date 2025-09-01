@@ -166,6 +166,7 @@ impl<'a> KnnConditionRewriter<'a> {
 			| RecordIdKeyLit::String(_)
 			| RecordIdKeyLit::Generate(_)
 			| RecordIdKeyLit::Uuid(_) => Some(id.clone()),
+			RecordIdKeyLit::Datetime(_) => Some(id.clone()),
 			RecordIdKeyLit::Array(a) => self.eval_exprs(a).map(RecordIdKeyLit::Array),
 			RecordIdKeyLit::Object(o) => self.eval_object(o).map(RecordIdKeyLit::Object),
 			RecordIdKeyLit::Range(r) => {

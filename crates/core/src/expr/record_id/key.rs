@@ -10,7 +10,7 @@ use crate::expr::escape::{EscapeKey, EscapeRid};
 use crate::expr::fmt::{Fmt, Pretty, is_pretty, pretty_indent};
 use crate::expr::literal::ObjectEntry;
 use crate::expr::{Expr, FlowResultExt as _, RecordIdKeyRangeLit};
-use crate::val::{Array, Object, RecordIdKey, Strand, Uuid};
+use crate::val::{Array, Datetime, Object, RecordIdKey, Strand, Uuid};
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum RecordIdKeyGen {
@@ -34,6 +34,7 @@ pub enum RecordIdKeyLit {
 	Number(i64),
 	String(Strand),
 	Uuid(Uuid),
+	Datetime(Datetime),
 	Array(Vec<Expr>),
 	Object(Vec<ObjectEntry>),
 	Generate(RecordIdKeyGen),
@@ -52,6 +53,7 @@ impl Display for RecordIdKeyLit {
 			Self::Number(v) => Display::fmt(v, f),
 			Self::String(v) => EscapeRid(v).fmt(f),
 			Self::Uuid(v) => Display::fmt(v, f),
+			Self::Datetime(v) => Display::fmt(v, f),
 			Self::Array(v) => {
 				let mut f = Pretty::from(f);
 				f.write_char('[')?;
@@ -103,6 +105,7 @@ impl RecordIdKeyLit {
 			RecordIdKeyLit::Number(_)
 			| RecordIdKeyLit::String(_)
 			| RecordIdKeyLit::Uuid(_)
+			| RecordIdKeyLit::Datetime(_)
 			| RecordIdKeyLit::Generate(_) => true,
 			RecordIdKeyLit::Range(record_id_key_range_lit) => record_id_key_range_lit.is_static(),
 			RecordIdKeyLit::Array(exprs) => exprs.iter().all(|x| x.is_static()),
@@ -122,6 +125,7 @@ impl RecordIdKeyLit {
 			RecordIdKeyLit::Number(v) => Ok(RecordIdKey::Number(*v)),
 			RecordIdKeyLit::String(v) => Ok(RecordIdKey::String(v.clone().into_string())),
 			RecordIdKeyLit::Uuid(v) => Ok(RecordIdKey::Uuid(*v)),
+			RecordIdKeyLit::Datetime(v) => Ok(RecordIdKey::Datetime(v.clone())),
 			RecordIdKeyLit::Array(v) => {
 				let mut res = Vec::new();
 				for v in v.iter() {

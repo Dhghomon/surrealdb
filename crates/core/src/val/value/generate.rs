@@ -36,6 +36,11 @@ impl Value {
 				table: tb.into_string(),
 				key: id.into(),
 			}),
+			// There is a Datetime for the id field
+			Value::Datetime(id) => Ok(RecordId {
+				table: tb.into_string(),
+				key: id.into(),
+			}),
 			// There is no record id field
 			Value::None => Ok(RecordId {
 				table: tb.into_string(),

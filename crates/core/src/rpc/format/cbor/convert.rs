@@ -2,15 +2,15 @@ use std::collections::BTreeMap;
 use std::iter::once;
 use std::ops::Bound;
 
-use ciborium::Value as CborValue;
+use ciborium::{Value as CborValue, into_writer};
 use geo::{LineString, Point, Polygon};
 use geo_types::{MultiLineString, MultiPoint, MultiPolygon};
 use rust_decimal::Decimal;
 
 use crate::syn;
 use crate::val::{
-	self, Array, DecimalExt, Geometry, Number, Object, Range, RecordIdKey, RecordIdKeyRange, Table,
-	Uuid, Value,
+	self, Array, Datetime, DecimalExt, Geometry, Number, Object, Range, RecordIdKey,
+	RecordIdKeyRange, Table, Uuid, Value,
 };
 
 // Tags from the spec - https://www.iana.org/assignments/cbor-tags/cbor-tags.xhtml
@@ -397,6 +397,7 @@ pub fn from_value(val: Value) -> Result<CborValue, &'static str> {
 					RecordIdKey::Number(v) => CborValue::Integer(v.into()),
 					RecordIdKey::String(v) => CborValue::Text(v),
 					RecordIdKey::Uuid(v) => from_uuid(v),
+					RecordIdKey::Datetime(v) => from_datetime(v),
 					RecordIdKey::Array(v) => from_array(v)?,
 					RecordIdKey::Object(v) => from_object(v)?,
 					RecordIdKey::Range(v) => {
@@ -565,6 +566,9 @@ fn from_record_id_key(v: RecordIdKey) -> Result<CborValue, &'static str> {
 		RecordIdKey::Uuid(v) => {
 			Ok(CborValue::Tag(TAG_SPEC_UUID, Box::new(CborValue::Bytes(v.into_bytes().into()))))
 		}
+		RecordIdKey::Datetime(v) => {
+			Ok(CborValue::Tag(TAG_SPEC_DATETIME, Box::new(from_datetime(v))))
+		}
 	}
 }
 
@@ -591,6 +595,12 @@ fn to_record_id_key(val: CborValue) -> Result<RecordIdKey, &'static str> {
 
 fn from_uuid(val: Uuid) -> CborValue {
 	CborValue::Tag(TAG_SPEC_UUID, Box::new(CborValue::Bytes(val.into_bytes().into())))
+}
+
+fn from_datetime(val: Datetime) -> CborValue {
+	let mut buf: Vec<u8> = Vec::new();
+	into_writer(&val, &mut buf).unwrap();
+	CborValue::Tag(TAG_SPEC_DATETIME, Box::new(CborValue::Bytes(buf)))
 }
 
 fn to_uuid(val: CborValue) -> Result<Uuid, &'static str> {

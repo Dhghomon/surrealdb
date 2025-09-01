@@ -181,6 +181,12 @@ impl From<Uuid> for RecordIdKey {
 	}
 }
 
+impl From<val::datetime::Datetime> for RecordIdKey {
+	fn from(value: val::datetime::Datetime) -> Self {
+		Self(val::RecordIdKey::Datetime(value.into()))
+	}
+}
+
 impl TryFrom<RecordIdKey> for Uuid {
 	type Error = anyhow::Error;
 
